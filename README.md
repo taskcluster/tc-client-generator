@@ -62,7 +62,7 @@ Once you have been granted the above scope:
 To see a full description of all the config options available to you, run `tc-client-generator --help`:
 
 ```
-tc-client-generator 0.0.0
+tc-client-generator 0.0.1
 
 tc-client-generator generates taskcluster clients in a variety of programming languages.
 
@@ -97,7 +97,7 @@ cd $(go env GOPATH)/src/github.com/taskcluster/tc-client-generator
 Run the `release.sh` script like so:
 
 ```
-$ ./release.sh 0.0.0
+$ ./release.sh 0.0.1
 ```
 
 This will perform some checks, tag the repo, push the tag to github, which will then trigger travis-ci to run tests, and publish the new release.

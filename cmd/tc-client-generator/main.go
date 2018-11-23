@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	version  = "0.0.0"
+	version  = "0.0.1"
 	revision = "" // this is set during build with `-ldflags "-X main.revision=$(git rev-parse HEAD)"`
 )
 
