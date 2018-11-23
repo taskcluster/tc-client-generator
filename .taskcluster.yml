@@ -1,0 +1,216 @@
+# The version is always required
+version: 0
+# Top level metadata is always required
+metadata:
+  name: 'tc-client-generator CI'
+  description: 'The unit tests of tc-client-generator tested on a subset of platforms'
+  owner: '{{ event.head.user.email }}' # the user who sent the pr/push e-mail will be inserted here
+  source: '{{ event.head.repo.url }}'  # the repo where the pr came from will be inserted here
+tasks:
+
+
+  ##########################################################
+  ############## Windows Server 2012 R2 Build ##############
+  ##########################################################
+
+  - provisionerId: aws-provisioner-v1
+    workerType: win2012r2
+    metadata:
+      name: 'Build/test 64 bit tc-client-generator on Windows Server 2012 R2'
+      description: 'This builds and tests the 64 bit Windows version of tc-client-generator on Windows Server 2012 R2'
+      owner: '{{ event.head.user.email }}' # the user who sent the pr/push e-mail will be inserted here
+      source: '{{ event.head.repo.url }}'  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # Events that will trigger this task
+        events:
+          - pull_request.synchronize
+          - push
+    scopes:
+      - secrets:get:repo:github.com/taskcluster/tc-client-generator
+      - generic-worker:cache:tc-client-generator-checkout
+    payload:
+      features:
+        taskclusterProxy: true
+      maxRunTime: 3600
+      command:
+        - set CGO_ENABLED=0
+        - set GOPATH=%CD%\gopath1.11.2
+        - set GOROOT=%CD%\go1.11.2\go
+        - set PATH=%CD%\git\cmd;%GOPATH%\bin;%GOROOT%\bin;%PATH%
+        - git config --global core.autocrlf false
+        - go version
+        - go env
+        # extract .bat file from secret repo:github.com/taskcluster/tc-client-generator
+        - 'type secrets | jq -r .secret.bat > env.bat'
+        - env.bat
+        - 'if not exist "%GOPATH%\src\github.com\taskcluster" mkdir "%GOPATH%\src\github.com\taskcluster"'
+        - 'cd "%GOPATH%\src\github.com\taskcluster"'
+        - 'if not exist tc-client-generator git clone {{ event.head.repo.url }} tc-client-generator'
+        - 'cd tc-client-generator'
+        - 'git fetch "{{ event.head.repo.url }}" "+{{ event.head.ref }}:refs/heads/%TASK_ID%"'
+        - 'git checkout -f "%TASK_ID%"'
+        - 'git reset --hard "{{ event.head.sha }}"'
+        - 'git clean -fdx'
+        - 'git checkout -B tmp -t "%TASK_ID%"'
+        - go get -v -u github.com/gordonklaus/ineffassign
+        - go get -v -u -t ./...
+        - .\build.cmd
+        - |
+          :: This counts the number of lines returned by git status to make sure we have not
+          :: missed anything important in the .gitignore file.
+          git status
+          :: Dump temp file a directory higher, otherwise git status reports the tmp1.txt file!
+          git status --porcelain | C:\Windows\System32\find.exe /v /c "" > ..\tmp1.txt
+          set /P lines=<..\tmp1.txt
+          del ..\tmp1.txt
+          :: This checks that if more than 0 lines are returned, we fail.
+          if %lines% gtr 0 exit /b 64
+          :: find.exe will have exited with exit code 1, so need to explicitly exit with 0.
+          exit /b 0
+      mounts:
+        - cacheName: tc-client-generator-checkout
+          directory: gopath1.11.2\src
+        - content:
+            url: https://storage.googleapis.com/golang/go1.11.2.windows-amd64.zip
+            sha256: 086c59df0dce54d88f30edd50160393deceb27e73b8d6b46b9ee3f88b0c02e28
+          directory: go1.11.2
+          format: zip
+        - content:
+            url: https://github.com/git-for-windows/git/releases/download/v2.14.1.windows.1/MinGit-2.14.1-64-bit.zip
+            sha256: 65c12e4959b8874187b68ec37e532fe7fc526e10f6f0f29e699fa1d2449e7d92
+          directory: git
+          format: zip
+        - content:
+            url: http://taskcluster/secrets/v1/secret/repo:github.com/taskcluster/tc-client-generator
+            sha256: cbf5b0dab46d78d24b9439ee6ed89395a437ffdf846f233462bc4f7443866225
+          file: secrets
+        - content:
+            url: https://github.com/stedolan/jq/releases/download/jq-1.5/jq-win64.exe
+            sha256: ebecd840ba47efbf66822868178cc721a151060937f7ac406e3d31bd015bde94
+          file: jq.exe
+
+
+  ##########################################################
+  ################# macOS 10.14.1 Build ####################
+  ##########################################################
+
+  - provisionerId: pmoore-manual
+    workerType: mac-os-x
+    metadata:
+      name: 'Build/test 64 bit tc-client-generator on macOS 10.14.1 (or later)'
+      description: 'This builds and tests tc-client-generator on macOS 10.14.1 (or later)'
+      owner: '{{ event.head.user.email }}' # the user who sent the pr/push e-mail will be inserted here
+      source: '{{ event.head.repo.url }}'  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # Events that will trigger this task
+        events:
+          - pull_request.synchronize
+          - push
+    scopes:
+      - secrets:get:repo:github.com/taskcluster/tc-client-generator
+      - generic-worker:cache:tc-client-generator-checkout
+    payload:
+      features:
+        taskclusterProxy: true
+      maxRunTime: 3600
+      command:
+        - - /bin/bash
+          - -vxec
+          - |
+            export CGO_ENABLED=0
+            export GOROOT="$(pwd)/go1.11.2/go"
+            export GOPATH="$(pwd)/gopath1.11.2"
+            export PATH="${GOPATH}/bin:${GOROOT}/bin:${PATH}"
+            go version
+            go env
+            cat secrets | jq -r .secret.sh > env.sh
+            source env.sh
+            mkdir -p "${GOPATH}/src/github.com/taskcluster"
+            cd "${GOPATH}/src/github.com/taskcluster"
+            if [ ! -d tc-client-generator/.git ]; then rm -rf tc-client-generator; git clone '{{ event.head.repo.url }}' 'tc-client-generator'; fi
+            cd 'tc-client-generator'
+            git fetch '{{ event.head.repo.url }}' "+{{ event.head.ref }}:refs/heads/${TASK_ID}"
+            git checkout -f "${TASK_ID}"
+            git reset --hard '{{ event.head.sha }}'
+            git clean -fdx
+            git checkout -B tmp -t "${TASK_ID}"
+            go get -v -u github.com/gordonklaus/ineffassign
+            go get -v -u -t ./...
+            ./build.sh -t
+            # Make sure we haven't forgotten something in the .gitignore file.
+            # Output of wc command can contain spaces on darwin, so no quotes around expression.
+            git status
+            test $(git status --porcelain | wc -l) == 0
+      mounts:
+        - cacheName: tc-client-generator-checkout
+          directory: gopath1.11.2/src
+        - content:
+            url: https://storage.googleapis.com/golang/go1.11.2.darwin-amd64.tar.gz
+            sha256: be2a9382ef85792280951a78e789e8891ddb1df4ac718cd241ea9d977c85c683
+          directory: go1.11.2
+          format: tar.gz
+        - content:
+            url: http://localhost:8080/secrets/v1/secret/repo:github.com/taskcluster/tc-client-generator
+            sha256: cbf5b0dab46d78d24b9439ee6ed89395a437ffdf846f233462bc4f7443866225
+          file: secrets
+        - content:
+            url: https://github.com/stedolan/jq/releases/download/jq-1.5/jq-osx-amd64
+            sha256: 386e92c982a56fe4851468d7a931dfca29560cee306a0e66c6a1bd4065d3dac5
+          file: jq
+
+
+  ##########################################################
+  ################### Linux amd64 Build ####################
+  ##########################################################
+
+  - provisionerId: aws-provisioner-v1
+    workerType: github-worker
+    metadata:
+      name: 'Build/test 64 bit tc-client-generator on Debian GNU/Linux 8 (jessie)'
+      description: 'This builds the 64 bit linux version of tc-client-generator'
+      owner: '{{ event.head.user.email }}' # the user who sent the pr/push e-mail will be inserted here
+      source: '{{ event.head.repo.url }}'  # the repo where the pr came from will be inserted here
+    extra:
+      github:
+        # Events that will trigger this task
+        events:
+          - pull_request.synchronize
+          - push
+    scopes:
+      - secrets:get:repo:github.com/taskcluster/tc-client-generator
+      - docker-worker:cache:tc-client-generator-checkout
+    payload:
+      features:
+        taskclusterProxy: true
+      maxRunTime: 3600
+      image: golang
+      command:
+        - /bin/bash
+        - -vxec
+        - |
+          export CGO_ENABLED=0
+          go version
+          go env
+          curl -sL https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 > /usr/bin/jq
+          chmod u+x /usr/bin/jq
+          curl -sL http://taskcluster/secrets/v1/secret/repo:github.com/taskcluster/tc-client-generator | /usr/bin/jq -r .secret.sh > env.sh
+          source env.sh
+          mkdir -p "${GOPATH}/src/github.com/taskcluster"
+          cd "${GOPATH}/src/github.com/taskcluster"
+          if [ ! -d tc-client-generator/.git ]; then rm -rf tc-client-generator; git clone '{{ event.head.repo.url }}' 'tc-client-generator'; fi
+          cd 'tc-client-generator'
+          git fetch '{{ event.head.repo.url }}' "+{{ event.head.ref }}:refs/heads/${TASK_ID}"
+          git checkout -f "${TASK_ID}"
+          git reset --hard '{{ event.head.sha }}'
+          git clean -fdx
+          git checkout -B tmp -t "${TASK_ID}"
+          go get -v -u github.com/gordonklaus/ineffassign
+          go get -v -u -t ./...
+          ./build.sh -t
+          # Make sure we haven't forgotten something in the .gitignore file.
+          git status
+          test "$(git status --porcelain | wc -l)" == 0
+      cache:
+        tc-client-generator-checkout: /go/src

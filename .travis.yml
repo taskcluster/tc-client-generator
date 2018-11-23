@@ -1,0 +1,39 @@
+language: go
+go:
+  - "1.11.2"
+
+env:
+  - "CGO_ENABLED=0 GIMME_OS=linux   GIMME_ARCH=386"
+  - "CGO_ENABLED=0 GIMME_OS=linux   GIMME_ARCH=amd64"
+  - "CGO_ENABLED=0 GIMME_OS=linux   GIMME_ARCH=arm"
+# broken due to https://github.com/travis-ci/gimme/issues/154
+# - "CGO_ENABLED=0 GIMME_OS=linux   GIMME_ARCH=arm64"
+  - "CGO_ENABLED=0 GIMME_OS=darwin  GIMME_ARCH=amd64"
+  - "CGO_ENABLED=0 GIMME_OS=windows GIMME_ARCH=amd64"
+  - "CGO_ENABLED=0 GIMME_OS=windows GIMME_ARCH=386"
+
+install:
+  - "test $GIMME_OS.$GIMME_ARCH != linux.amd64 || go get github.com/mattn/goveralls"
+
+script:
+  - "test $GIMME_OS.$GIMME_ARCH != linux.amd64 || ./build.sh -t"
+  - "test $GIMME_OS.$GIMME_ARCH != linux.amd64 || git status"
+  - "test $GIMME_OS.$GIMME_ARCH != linux.amd64 || test $(git status --porcelain | wc -l) == 0"
+  - "test $GIMME_OS.$GIMME_ARCH == linux.amd64 || ./build.sh"
+
+after_script:
+  - "test $GIMME_OS.$GIMME_ARCH != linux.amd64 || ${GOPATH}/bin/goveralls -coverprofile=coverage.report -service=travis-ci"
+
+before_deploy:
+  - "source .travis_rename_releases.sh"
+
+deploy:
+  api_key:
+    secure: ZHBt/1brT9HPkulYzf20Tg8tIStP9Sp1IHu1rmFIYnwgBBAfPpFmb6RBqU5CXl5/1+8DRDsC1yz09eytbMo3iUYaW7ZVqkw/HB3dknP4pma+CQgBINBN3zzI0am2pVO+6ocEnoPMn84xvc01KHwe1b7Frk+MV8zPS2aKJZihPVdjeep4onDNWzVZHs4JvXwzwHUCQZgVUiLn7WceM8aJ+KzIYx4DgaCJwtEdasU0tWENw+FulVgI9diYE5bC89Q77JveLjf8kiQkhT7p1tm7nOS9gkKxn8iSORjbKgRB807snlYoMVUegsOu4445eqwDHHXP+MuagyZIExBXlivcxmhfe5s7zfVvuZxo6nR8pyRL9wzt4Nrto2PHm42gcSSySsCpm/06GTJnu4ctjJ9lZ1Zst90hmrqK2oUHfYjyQ+6p9WMdY2UihBOSoTtCZDzjrbFRTQPgS+Va/6qjOUByJUAK3kPj7gSQT7PvXAz/gp5QyUvsDaB6rMBIQxg3bN+vrFh94/BEC32c2N1IkD5c9afVkuJVsICCv0Y9e06F08wLlFL/Zf3bFxbPJyty80xh5JUvchzeUtW7Q3gXhBvIOfx37JhToipAOLUS675Qpy20TdLRiieyePXNHMkFKk9pssdWv0R11huS9dfYeWz8Eq8H45oXE3OumNnTb52qjvE=
+  file:
+    - "${RELEASE_FILE}"
+  provider: releases
+  skip_cleanup: true
+  on:
+    repo: taskcluster/tc-client-generator
+    tags: true
