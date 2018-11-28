@@ -38,12 +38,15 @@ exit code 64 will be returned.
 
 Examples:
 
-1) Generate all language clients in subdirectories of the current directory:
+1) Generate all language clients in subdirectories of the current directory,
+based on the references and schemas from the taskcluster deployment at
+https://pmoore.taskcluster.net:
 
-  $ tc-client-generator
+  $ tc-client-generator --taskcluster-root-url https://pmoore.taskcluster.net
 
 2) Generate go client in ~/go/src/github.com/foo/bar/vendor and python client
-in current directory:
+in current directory, based on taskcluster root url specified in environment
+variable TASKCLUSTER_ROOT_URL:
 
   $ tc-client-generator --go-dir ~/go/src/github.com/foo/bar/vendor --python-dir .
 
