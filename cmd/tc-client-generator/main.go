@@ -157,7 +157,11 @@ func ProcessArguments(args []string, out io.Writer, logger *log.Logger) (exitCod
 			i++
 			taskclusterRootURL = args[i]
 		default:
-			logger.Printf("Unrecognised option: %v", args[i])
+			if args[i] == "-h" || args[i] == "--help" || args[i] == "--version" {
+				logger.Printf("%v option is not allowed in combination with other command line options", args[i])
+			} else {
+				logger.Printf("Unrecognised option: %v", args[i])
+			}
 			exitCode = 1
 			return
 		}
