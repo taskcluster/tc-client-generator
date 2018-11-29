@@ -64,14 +64,56 @@ To see a full description of all the config options available to you, run `tc-cl
 ```
 tc-client-generator 0.0.1
 
-tc-client-generator generates taskcluster clients in a variety of programming languages.
+tc-client-generator generates taskcluster clients in a variety of programming
+languages.
 
-  Usage:
-    tc-client-generator --help
-    tc-client-generator --version
+Usage:
+  tc-client-generator [--python-dir PYTHON_DIR]
+                      [--node-dir NODE_DIR]
+                      [--go-dir GO_DIR]
+                      [--javascript-dir JAVASCRIPT_DIR]
+                      [--java-dir JAVA_DIR]
+                      [--taskcluster-root-url TASKCLUSTER_ROOT_URL]
+  tc-client-generator -h|--help
+  tc-client-generator --version
 
-  Exit Codes:
-    0      Completed successfully.
+If called without any arguments, tc-client-generator will generate _all_
+clients in subdirectories of the current directory. Otherwise, only language
+clients that have a directory specified as a command option will be generated.
+
+If --taskcluster-root-url is not specified, the environment variable
+TASKCLUTER_ROOT_URL will be used if set, otherwise no changes will be made and
+exit code 64 will be returned.
+
+Examples:
+
+1) Generate all language clients in subdirectories of the current directory,
+based on the references and schemas from the taskcluster deployment at
+https://pmoore.taskcluster.net:
+
+  $ tc-client-generator --taskcluster-root-url https://pmoore.taskcluster.net
+
+2) Generate go client in ~/go/src/github.com/foo/bar/vendor and python client
+in current directory, based on taskcluster root url specified in environment
+variable TASKCLUSTER_ROOT_URL:
+
+  $ tc-client-generator --go-dir ~/go/src/github.com/foo/bar/vendor --python-dir .
+
+Exit Codes:
+
+  0     Completed successfully.
+  1     Invalid arguments passed.
+ 64     No taskcluster root URL specified.
+ 65     Invalid taskcluster root url specified.
+ 66     Error fetching references/manifests from taskcluster.
+ 67     Error creating python source directory.
+ 68     Error creating node source directory.
+ 99     Error creating go source directory.
+ 70     Error creating javascript source directory.
+ 71     Error creating java source directory.
+ 72     Error writing to the filesystem.
+ 73     Internal error (crash).
+
 ```
 
 # Run the client generator
